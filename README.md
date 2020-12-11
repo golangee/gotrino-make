@@ -9,8 +9,8 @@ Package gotrino-make/cmd/gotrino-make contains a program to build or serve with 
 GOPROXY=direct go get -u github.com/golangee/gotrino-make/cmd/gotrino-make
 
 # create a new wasm project
-mkdir -p ~/tmp/gotrino-test
-cd ~tmp/gotrino-test
+mkdir -p ~/tmp/gotrino-test/cmd/wasm
+cd ~/tmp/gotrino-test
 go mod init mycompany.com/myproject
 
 # by convention, there must be a main package in cmd/wasm as an entry point
@@ -38,17 +38,15 @@ func run(){
     // render some component or html
     gotrino.RenderBody(button.NewTextButton("hello world",func(){
         panic("not yet implemented")
-      })
-    )
+      }))
 }
-
 EOL
 
 # make nice
 gofmt -w cmd/wasm/main.go
 
 # build for productive deployment
-gotrino-make -dir=./dist
+gotrino-make -dir=./dist build
 
 # serve and rebuild automatically. Use 0.0.0.0 to be able to connect with your smartphone (security concern). 
 # Now change your file and note that the browser will automatically reload the page.

@@ -16,10 +16,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/golangee/gotrino-make/internal/app"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -29,12 +31,29 @@ func main() {
 }
 
 func run() error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("unable to get current working directory: %w", err)
+	}
+
 	host := flag.String("host", "localhost", "the host to bind on.")
 	port := flag.Int("port", 8080, "the port to bind to.")
 	wwwDir := flag.String("www", "", "the directory which contains the wasm module.")
-	buildDir := flag.String("dir", filepath.Join(os.TempDir(), "gotrino-livebuilder"), "the target build directory")
+	buildDir := flag.String("dir", "", "the target build directory")
 
 	flag.Parse()
+
+	if *buildDir == "" {
+		*buildDir = filepath.Join(os.TempDir(), "gotrino-livebuilder")
+	}
+
+	if strings.HasPrefix(*buildDir, ".") {
+		*buildDir = filepath.Join(cwd, *buildDir)
+	}
+
+	if *wwwDir == "" || strings.HasPrefix(*wwwDir, ".") {
+		*wwwDir = filepath.Join(cwd, *wwwDir)
+	}
 
 	if len(flag.Args()) == 1 {
 		action := flag.Args()[len(flag.Args())-1]

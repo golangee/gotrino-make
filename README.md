@@ -52,3 +52,6 @@ gotrino-make -dir=./dist build
 # Now change your file and note that the browser will automatically reload the page.
 gotrino-make -host=0.0.0.0 -www=. serve
 ```
+<p align="center">
+  <img height="300" src="helloworld.png">
+</p>

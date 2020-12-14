@@ -50,7 +50,7 @@ func NewBuilder(dstDir, srcDir string, buildFinished func(hash string)) (*Builde
 	w, err := fsnotify.NewWatcher(srcDir, func() {
 		hash, err := builder.HashFileTree(srcDir)
 		if err != nil {
-			b.logger.Print(ecs.Msg("failed to calculate file tree hash"), ecs.ErrMsg(err))
+			b.logger.Println(ecs.Msg("failed to calculate file tree hash"), ecs.ErrMsg(err))
 			return
 		}
 
@@ -60,7 +60,7 @@ func NewBuilder(dstDir, srcDir string, buildFinished func(hash string)) (*Builde
 
 		if bytes.Compare(hashCopy, hash) != 0 {
 			if err := b.Build(); err != nil {
-				b.logger.Print(ecs.Msg("failed to build project"), ecs.ErrMsg(err))
+				b.logger.Println(ecs.Msg("failed to build project"), ecs.ErrMsg(err))
 				return
 			}
 		}
@@ -71,7 +71,7 @@ func NewBuilder(dstDir, srcDir string, buildFinished func(hash string)) (*Builde
 	}
 
 	b.watcher = w
-	b.logger.Print(ecs.Msg("start watching " + srcDir))
+	b.logger.Println(ecs.Msg("start watching " + srcDir))
 
 	return b, nil
 }
@@ -83,13 +83,13 @@ func (b *Builder) Build() error {
 
 	start := time.Now()
 	defer func() {
-		b.logger.Print(ecs.Msg("build duration " + time.Now().Sub(start).String()))
+		b.logger.Println(ecs.Msg("build duration " + time.Now().Sub(start).String()))
 	}()
 	hash, err := builder.HashFileTree(b.srcDir)
 	if err != nil {
 		return err
 	}
-	b.logger.Print(ecs.Msg("building " + hex.EncodeToString(hash)))
+	b.logger.Println(ecs.Msg("building " + hex.EncodeToString(hash)))
 
 	err = builder.BuildProject(b.srcDir, b.dstDir)
 	if err != nil {

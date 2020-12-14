@@ -24,13 +24,13 @@ import (
 // newRouter creates a router and connects the endpoints with the given server and its methods.
 func (s *Server) newRouter(fileServerDir string) *httprouter.Router {
 	logMe := func(p string) string {
-		s.logger.Print(ecs.Msg("registered endpoint"), log.V("url.path", p))
+		s.logger.Println(ecs.Msg("registered endpoint"), log.V("url.path", p))
 		return p
 	}
 
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, logMe("/blub"), func(writer http.ResponseWriter, request *http.Request) {
-		s.logger.Print(ecs.Msg("hello world"))
+		s.logger.Println(ecs.Msg("hello world"))
 	})
 	router.HandlerFunc(http.MethodGet, logMe("/api/v1/poll/version"), s.pollVersion)
 

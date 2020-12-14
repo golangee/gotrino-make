@@ -45,7 +45,7 @@ func NewApplication(host string, port int, wwwDir, buildDir string) (*Applicatio
 	a.initCloseListener()
 	a.logger = log.NewLogger(ecs.Log("application"))
 
-	a.logger.Print(ecs.Msg("build dir " + tmpDir))
+	a.logger.Println(ecs.Msg("build dir " + tmpDir))
 	wwwBuildDir := filepath.Join(tmpDir, "www")
 
 	if err := os.MkdirAll(wwwBuildDir, os.ModePerm); err != nil {
@@ -63,7 +63,7 @@ func NewApplication(host string, port int, wwwDir, buildDir string) (*Applicatio
 	if err := a.builder.Build(); err != nil {
 		buildErr := builder2.BuildErr{}
 		if errors.As(err, &buildErr) {
-			a.logger.Print(ecs.ErrMsg(err))
+			a.logger.Println(ecs.ErrMsg(err))
 		} else {
 			return nil, fmt.Errorf("unable to create initial build: %w", err)
 		}
@@ -83,7 +83,7 @@ func (a *Application) initCloseListener() {
 
 func (a *Application) Run() error {
 	defer func() {
-		a.logger.Print(ecs.Msg("exiting"))
+		a.logger.Println(ecs.Msg("exiting"))
 	}()
 
 	return a.server.Run()

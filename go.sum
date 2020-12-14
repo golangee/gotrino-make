@@ -3,6 +3,8 @@ github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4
 github.com/golangee/forms-example v0.0.0-20200818163651-1e606eb5369e h1:+f/Y0SdgRjqxwXGTOKNYZbLNXTUYQTYsfkcOgiscBms=
 github.com/golangee/log v0.0.0-20201120150808-72a0d21fc254 h1:ygz4ZwEo9T0rwxrdPENEAXAZkvL+l46/lB8nXe2ymuo=
 github.com/golangee/log v0.0.0-20201120150808-72a0d21fc254/go.mod h1:dUiMZFHdnlIsi6KOyAj+5jT+THo32aFtAoFMTRBlwuo=
+github.com/golangee/log v0.0.0-20201214095632-610ba2dec6e5 h1:UYE411gQQIorUoIvp9BqFIBCxTwnFUa6XBjN0kjwiqY=
+github.com/golangee/log v0.0.0-20201214095632-610ba2dec6e5/go.mod h1:dUiMZFHdnlIsi6KOyAj+5jT+THo32aFtAoFMTRBlwuo=
 github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4dN7jwJOQ1U=
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9 h1:L2auWcuQIvxz9xSEqzESnV/QN/gNRXNApHi3fYwl2w0=

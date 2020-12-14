@@ -68,7 +68,7 @@ func NewWatcher(root string, onNotifyCallback func()) (*Watcher, error) {
 				}
 
 				if log.Debug {
-					w.logger.Print(ecs.Msg(event.String()))
+					w.logger.Println(ecs.Msg(event.String()))
 				}
 
 				if event.Op&fsnotify.Create == fsnotify.Create {
@@ -85,7 +85,7 @@ func NewWatcher(root string, onNotifyCallback func()) (*Watcher, error) {
 				if !ok {
 					return
 				}
-				w.logger.Print(ecs.ErrMsg(err))
+				w.logger.Println(ecs.ErrMsg(err))
 			}
 		}
 	}()
@@ -122,7 +122,7 @@ func (w *Watcher) checkLater() {
 		rebuild := atomic.LoadInt64(&w.lastModRebuild) == 1
 		if rebuild {
 			if err := w.updateRecursiveWatch(w.dir); err != nil {
-				w.logger.Print(ecs.Msg("unable to update recursive watch"), ecs.ErrMsg(err))
+				w.logger.Println(ecs.Msg("unable to update recursive watch"), ecs.ErrMsg(err))
 			}
 		}
 

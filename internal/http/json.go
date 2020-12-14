@@ -27,12 +27,12 @@ func writeJson(w http.ResponseWriter, r *http.Request, obj interface{}) {
 	buf, err := json.Marshal(obj)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.FromContext(r.Context()).Print(ecs.Msg("failed to marshal json response"), ecs.ErrMsg(err), log.V("type", reflect.TypeOf(obj).String()))
+		log.FromContext(r.Context()).Println(ecs.Msg("failed to marshal json response"), ecs.ErrMsg(err), log.V("type", reflect.TypeOf(obj).String()))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(buf); err != nil {
-		log.FromContext(r.Context()).Print(ecs.Msg("failed to write Json response"), ecs.ErrMsg(err))
+		log.FromContext(r.Context()).Println(ecs.Msg("failed to write Json response"), ecs.ErrMsg(err))
 	}
 }

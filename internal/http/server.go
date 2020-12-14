@@ -76,11 +76,11 @@ func (s *Server) Run() error {
 		Handler:      router,
 	}
 
-	s.logger.Print(ecs.Msg("starting"), ecs.ServerAddress(s.host), ecs.ServerPort(s.port))
+	s.logger.Println(ecs.Msg("starting"), ecs.ServerAddress(s.host), ecs.ServerPort(s.port))
 	err := s.httpSrv.ListenAndServe()
 
 	if err == http.ErrServerClosed {
-		s.logger.Print(ecs.Msg("stopped"))
+		s.logger.Println(ecs.Msg("stopped"))
 		return nil
 	}
 
@@ -90,6 +90,6 @@ func (s *Server) Run() error {
 // Stop signals the server to halt gracefully.
 func (s *Server) Stop() {
 	if err := s.httpSrv.Shutdown(context.Background()); err != nil {
-		s.logger.Print(ecs.Msg("failed to shutdown"), ecs.ErrMsg(err))
+		s.logger.Println(ecs.Msg("failed to shutdown"), ecs.ErrMsg(err))
 	}
 }

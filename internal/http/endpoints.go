@@ -22,7 +22,7 @@ import (
 )
 
 func (s *Server) pollVersion(w http.ResponseWriter, r *http.Request) {
-	log.FromContext(r.Context()).Print(ecs.Msg("registered long poll"))
+	log.FromContext(r.Context()).Println(ecs.Msg("registered long poll"))
 
 	c := s.await()
 	select {
@@ -30,7 +30,7 @@ func (s *Server) pollVersion(w http.ResponseWriter, r *http.Request) {
 		type Version struct {
 			Version string
 		}
-		log.FromContext(r.Context()).Print(ecs.Msg("returning " + version))
+		log.FromContext(r.Context()).Println(ecs.Msg("returning " + version))
 		writeJson(w, r, Version{Version: version})
 	case _ = <-time.After(50 * time.Second):
 		w.WriteHeader(http.StatusResetContent)

@@ -61,7 +61,7 @@ func NewApplication(host string, port int, wwwDir, buildDir string) (*Applicatio
 	}
 	a.builder = builder
 	if err := a.builder.Build(); err != nil {
-		buildErr := builder2.BuildErr{}
+		buildErr := builder2.CompileErr{}
 		if errors.As(err, &buildErr) {
 			a.logger.Println(ecs.ErrMsg(err))
 		} else {

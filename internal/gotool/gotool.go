@@ -17,10 +17,14 @@ package gotool
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golangee/log"
 	"os"
 	"os/exec"
 	"strings"
 )
+
+// Debug is a global flag, which is only used by the command line program to track errors down.
+var Debug = false
 
 // A Module describes the anatomy of Go Module.
 type Module struct {
@@ -47,9 +51,23 @@ func ModList(moduleDir string) ([]Module, error) {
 
 	str := "[" + strings.ReplaceAll(string(res), "}\n{", "},\n{") + "]"
 
-	var modules []Module
-	if err := json.Unmarshal([]byte(str), &modules); err != nil {
+	var tmp []Module
+	if err := json.Unmarshal([]byte(str), &tmp); err != nil {
 		return nil, fmt.Errorf("unable grab results: %w", err)
+	}
+
+	modules := make([]Module, 0, len(tmp))
+
+	// unclear what an empty Dir means, but we cannot work with it properly. There is no documentation
+	// for it: https://github.com/golang/go/blob/master/src/cmd/go/internal/list/list.go
+	for _, module := range tmp {
+		if module.Dir == "" {
+			if Debug {
+				log.Println("modList: ignoring module without directory: " + module.Path)
+			}
+		} else {
+			modules = append(modules, module)
+		}
 	}
 
 	return modules, nil

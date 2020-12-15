@@ -12,30 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package builder
+package builder_test
 
 import (
-	"encoding/hex"
-	"fmt"
+	"github.com/golangee/gotrino-make/internal/builder"
+	"github.com/golangee/gotrino-make/internal/gotool"
+	"github.com/golangee/gotrino-make/internal/hashtree"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestGoBuildWasm(t *testing.T) {
+	builder.Debug = true
+	hashtree.Debug = true
+	gotool.Debug = true
+
+	tmpDir := filepath.Join(os.TempDir(), "gotrino-make")
 	prjDir := "/Users/tschinke/git/github.com/golangee/forms-example/www/"
-	hash, err := HashFileTree(prjDir)
+	prj, err := builder.NewProject(prjDir, tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%s\n", hex.EncodeToString(hash))
 
-	root, err := GoEnv("GOROOT")
-	if err != nil {
-		t.Fatal(err)
+	for i := 0; i < 2; i++ {
+		if err := prj.Build(false, true); err != nil {
+			t.Fatal(err)
+		}
 	}
-	fmt.Printf("%s\n", root)
 
-	err = GoBuildWasm(prjDir, "bla.wasm")
-	if err != nil {
-		t.Fatal(err)
-	}
 }

@@ -13,5 +13,5 @@
 // limitations under the License.
 
 // Package hashtree contains a merkle tree for the filesystem, which can be updated
-// efficiently will delta calculations based on a files ModTime.
+// efficiently using delta calculations based on a files ModTime.
 package hashtree

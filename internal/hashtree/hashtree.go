@@ -30,6 +30,13 @@ import (
 // Debug is a global flag, which is only used by the command line program to track errors down.
 var Debug = false
 
+// File should represent a real physical file with the given meta data. It still virtual, as the file may not exist.
+type File struct {
+	Prefix   string // Prefix is a constant
+	Filename string // Filename is a relative but full file name
+	Node     *Node
+}
+
 // A Node is an element in a merkle tree. This one represents a part of the real filesystem. Using a hash tree,
 // we can efficiently decide and find changes in very large and complex trees.
 type Node struct {
@@ -40,10 +47,38 @@ type Node struct {
 	Children []*Node
 }
 
+func NewNode() *Node {
+	return &Node{}
+}
+
+// Flatten returns hashtree files with absolute file names according to the given root. The array is sorted ascending.
+func (n *Node) Flatten(prefix string) []File {
+	return n.flatten(prefix, "")
+}
+
+func (n *Node) flatten(prefix, root string) []File {
+	res := make([]File, 0, len(n.Children)+1)
+
+	res = append(res, File{
+		Prefix:   prefix,
+		Filename: filepath.Join(root, n.Name),
+		Node:     n,
+	})
+
+	for _, child := range n.Children {
+		flatChildren := child.flatten(prefix, filepath.Join(root, n.Name))
+		for _, flatChild := range flatChildren {
+			res = append(res, flatChild)
+		}
+	}
+
+	return res
+}
+
 // IndexOf returns the found index or nil in log(n), because children are sorted ascending by name.
 func (n *Node) IndexOf(name string) int {
 	idx := sort.Search(len(n.Children), func(i int) bool {
-		return n.Children[i].Name < name
+		return n.Children[i].Name >= name
 	})
 
 	if idx >= len(n.Children) || n.Children[idx].Name != name {
@@ -117,7 +152,7 @@ func Read(fname string) (r [32]byte, err error) {
 func ReadDir(rootDir string, parent *Node) error {
 	files, err := ioutil.ReadDir(rootDir)
 	if err != nil {
-		return fmt.Errorf("unable to list directory: %w", err)
+		return fmt.Errorf("unable to list directory: '%s': %w", rootDir, err)
 	}
 
 	hasher := sha256.New()
@@ -174,9 +209,10 @@ func ReadDir(rootDir string, parent *Node) error {
 
 	// purge files, which are absent
 	sort.Strings(currentFiles)
-	for _, child := range parent.Children {
+	childCopy := append([]*Node{}, parent.Children...)
+	for _, child := range childCopy {
 		idx := sort.SearchStrings(currentFiles, child.Name)
-		if idx < len(currentFiles) && currentFiles[idx] == child.Name {
+		if idx >= len(currentFiles) || currentFiles[idx] != child.Name {
 			parent.Remove(child.Name)
 			if Debug {
 				log.Println(fmt.Sprintf("hashtree: %s: found extra child, removing: %s", rootDir, child.Name))

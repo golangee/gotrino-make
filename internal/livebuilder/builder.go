@@ -93,7 +93,7 @@ func (b *Builder) Build() error {
 
 	err = builder.BuildProject(b.srcDir, b.dstDir)
 	if err != nil {
-		var buildErr builder.BuildErr
+		var buildErr builder.CompileErr
 		if !errors.As(err, &buildErr) {
 			return fmt.Errorf("unable to build wasm project: %w", err)
 		}

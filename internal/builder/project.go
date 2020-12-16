@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/golangee/gotrino-make/internal/git"
 	"github.com/golangee/gotrino-make/internal/gotool"
 	"github.com/golangee/gotrino-make/internal/hashtree"
 	"github.com/golangee/gotrino-make/internal/io"
@@ -18,6 +19,7 @@ const (
 	wasmFilename       = "app.wasm"
 	goRootJsBridge     = "misc/wasm/wasm_exec.js"
 	wasmBridgeFilename = "wasm_exec.js"
+	staticFolder       = "static"
 )
 
 // Debug is a global flag, which is only used by the command line program to track errors down.
@@ -31,14 +33,24 @@ type Part struct {
 
 // refresh reads the src it represents the current state of the filesystem.
 // If the force flag is true, the entire directory content is hashed again, instead of using the ModTime as
-// a delta indicator.
-func (p *Part) refresh(force bool) error {
-	if p.src == nil || force {
+// a delta indicator. The directory is mod.Dir+static
+func (p *Part) refresh(force bool, subDir string) error {
+	exists := true
+	dir := filepath.Join(p.mod.Dir, subDir)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		exists = false
+	}
+
+	if p.src == nil || force || !exists {
 		p.src = hashtree.NewNode()
 		p.src.Mode = os.ModeDir
 	}
 
-	if err := hashtree.ReadDir(p.mod.Dir, p.src); err != nil {
+	if !exists {
+		return nil
+	}
+
+	if err := hashtree.ReadDir(dir, p.src); err != nil {
 		return fmt.Errorf("unable to hash src: %w", err)
 	}
 
@@ -47,7 +59,8 @@ func (p *Part) refresh(force bool) error {
 
 // A Project is kept usually in-memory to efficiently (re-)build a Go module with dependent other modules.
 type Project struct {
-	srcPath             string  // srcPath contains the source go module.
+	srcPath             string // srcPath contains the source go module.
+	main                *Part
 	mods                []*Part // modules contains at least 1 module. The first module is always the main module.
 	dst                 *hashtree.Node
 	dstPath             string   // the actual target directory to merge everything into.
@@ -131,6 +144,7 @@ func (p *Project) loadMods() error {
 		}
 
 		p.mods = parts
+		p.main = &Part{mod: mods[0]}
 	}
 
 	return nil
@@ -140,9 +154,13 @@ func (p *Project) loadMods() error {
 // will calculates all hashes, instead of re-using already calculated ones.
 func (p *Project) refresh(force bool) error {
 	for _, mod := range p.mods {
-		if err := mod.refresh(force); err != nil {
+		if err := mod.refresh(force, staticFolder); err != nil {
 			return fmt.Errorf("unable to refresh module: %w", err)
 		}
+	}
+
+	if err := p.main.refresh(force, ""); err != nil {
+		return fmt.Errorf("unable to refresh main root: %w", err)
 	}
 
 	if p.dst == nil || force {
@@ -160,14 +178,14 @@ func (p *Project) refresh(force bool) error {
 // sync writes only different files from src to dst based on the current meta data.
 // Actually we assemble a virtual overlay, so that we can determine which files are shadowed and need to be actually
 // copied and written over (only once) and which files are extra.
-func (p *Project) sync(force bool) error {
+func (p *Project) sync() error {
 
 	var srcTree []hashtree.File
 
 	// reverse order: the natural order is, that at index 0, we have the main module
 	for i := len(p.mods) - 1; i >= 0; i-- {
 		mod := p.mods[i]
-		srcTree = hashtree.PutTop(srcTree, mod.src.Flatten(mod.mod.Dir))
+		srcTree = hashtree.PutTop(srcTree, mod.src.Flatten(filepath.Join(mod.mod.Dir, staticFolder)))
 	}
 
 	dstTree := p.dst.Flatten(p.dstPath)
@@ -175,9 +193,9 @@ func (p *Project) sync(force bool) error {
 	// copy only files which are different in content or do not exist at all
 	for _, file := range srcTree {
 		idx := hashtree.FindFile(dstTree, file.Filename)
-		if idx == -1 || srcTree[idx].Node.Hash != dstTree[idx].Node.Hash {
-			from := filepath.Join(srcTree[idx].Prefix, srcTree[idx].Filename)
-			to := filepath.Join(dstTree[idx].Prefix, dstTree[idx].Filename)
+		if idx == -1 || file.Node.Hash != dstTree[idx].Node.Hash {
+			from := filepath.Join(file.Prefix, file.Filename)
+			to := filepath.Join(p.dstPath, file.Filename)
 
 			if file.Node.Mode.IsDir() {
 				if Debug {
@@ -189,6 +207,10 @@ func (p *Project) sync(force bool) error {
 				}
 
 				continue
+			}
+
+			if err := os.MkdirAll(filepath.Dir(from), os.ModePerm); err != nil {
+				return fmt.Errorf("unable to create copy-folder: %w", err)
 			}
 
 			if Debug {
@@ -206,7 +228,7 @@ NextFile:
 	for _, file := range dstTree {
 		idx := hashtree.FindFile(srcTree, file.Filename)
 		if idx == -1 {
-			to := filepath.Join(dstTree[idx].Prefix, dstTree[idx].Filename)
+			to := filepath.Join(file.Prefix, file.Filename)
 
 			for _, dstFile := range p.extraDstFiles {
 				if to == dstFile {
@@ -215,7 +237,7 @@ NextFile:
 			}
 
 			if Debug {
-				log.Println("removing extra file file %s", to)
+				log.Println(fmt.Sprintf("removing extra file file %s", to))
 			}
 
 			if err := os.RemoveAll(to); err != nil {
@@ -233,6 +255,8 @@ func (p *Project) srcHash() [32]byte {
 	for _, mod := range p.mods {
 		hasher.Write(mod.src.Hash[:])
 	}
+
+	hasher.Write(p.main.src.Hash[:])
 
 	var r [32]byte
 	tmp := hasher.Sum(nil)
@@ -260,14 +284,18 @@ func (p *Project) Build(force, hotReload bool) error {
 	uberHash := p.srcHash()
 	if uberHash == p.lastBuildHash {
 		if Debug {
-			log.Println(fmt.Sprintf("hash unchanged: %s", hex.EncodeToString(uberHash[:])))
+			log.Println(fmt.Sprintf("hash unchanged, no build required: %s", hex.EncodeToString(uberHash[:])))
 		}
 
 		return nil
 	}
 
-	// copy all original stuff over
-	if err := p.sync(force); err != nil {
+	if Debug {
+		log.Println(fmt.Sprintf("build hash changed, old: %s new: %s", hex.EncodeToString(p.lastBuildHash[:]), hex.EncodeToString(uberHash[:])))
+	}
+
+	// copy all original stuff over, sync also deletes generated extra files like wasm and templates
+	if err := p.sync(); err != nil {
 		return fmt.Errorf("cannot sync file trees: %w", err)
 	}
 
@@ -278,8 +306,36 @@ func (p *Project) Build(force, hotReload bool) error {
 		HotReload: hotReload,
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Println("unable to read hostname", err)
+	}
+
+	buildInfo.Host = hostname
+
+	gitCommit, err := git.Head(p.srcPath)
+	if err != nil {
+		log.Println("unable to read git head", err)
+	}
+
+	buildInfo.Commit = gitCommit
+
+	goVersion, err := gotool.Version()
+	if err != nil {
+		log.Println("unable to get go compiler version", err)
+	}
+
+	buildInfo.Compiler = goVersion
+
 	if err := gotool.BuildWasm(p.mods[0].mod, filepath.Join(p.dstPath, wasmFilename)); err != nil {
 		buildInfo.CompileError = err
+		if Debug {
+			log.Println("wasm build failed", err)
+		}
+	} else {
+		if Debug {
+			log.Println("wasm build successful")
+		}
 	}
 
 	// apply all templates to files like *.gocss or *.gohtml
@@ -288,20 +344,37 @@ GoTemplateLoop:
 		ext := strings.ToLower(filepath.Ext(file.Filename))
 		for _, pattern := range p.templateExtPatterns {
 			if pattern == ext {
-				_, err := buildInfo.applyTemplate(filepath.Join(file.Prefix, file.Filename))
+				fname := filepath.Join(file.Prefix, file.Filename)
+				if Debug {
+					log.Println(fmt.Sprintf("found template file: %s", fname))
+				}
+
+				_, err := buildInfo.applyTemplate(fname)
+				if err != nil {
+					log.Println("template error", err)
+				}
+
 				if err != nil && buildInfo.CompileError == nil {
 					buildInfo.CompileError = err
 					break GoTemplateLoop
 				}
+
 			}
 		}
 	}
 
 	if buildInfo.HasError() {
+		if Debug {
+			log.Println("build has errors")
+		}
 		return CompileErr{delegate: buildInfo.CompileError}
 	}
 
 	p.lastBuildHash = uberHash
+
+	if Debug {
+		log.Println(fmt.Sprintf("build completed: %s", hex.EncodeToString(p.lastBuildHash[:])))
+	}
 
 	return nil
 }

@@ -3,6 +3,7 @@ package builder
 import (
 	"bytes"
 	"fmt"
+	"github.com/golangee/log"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -26,11 +27,24 @@ func (b CompileErr) Unwrap() error {
 
 // BuildInfo provides some basic information about a gotrino build.
 type BuildInfo struct {
-	Time         time.Time // Time of this build
-	Version      string    // Version contains a hash or something else which uniquely identifies this build.
-	CompileError error     // CompileError is nil or contains a compile error.
-	HotReload    bool      // HotReload is true, if the server should be polled at /api/v1/poll/version.
-	Wasm         bool      // Wasm is true, if the web assembly (app.wasm) is available.
+	// Time of this build.
+	Time time.Time
+	// Version contains a hash or something else which uniquely identifies this build.
+	Version string
+	// CompileError is nil or contains a compile error.
+	CompileError error
+	// HotReload is true, if the server should be polled at /api/v1/poll/version.
+	HotReload bool
+	// Wasm is true, if the web assembly (app.wasm) is available.
+	Wasm bool
+	// Commit may be empty, if the project is not contained in a git repository.
+	Commit string
+	// Host name.
+	Host string
+	// Compiler denotes the compiler which has created the wasm build.
+	Compiler string
+	// Extra may be nil or injected by user.
+	Extra interface{}
 }
 
 // HasError returns true, if something went wrong while building.
@@ -91,7 +105,11 @@ func (b BuildInfo) applyTemplate(fname string) (string, error) {
 	dstFile := fname
 	myExt := filepath.Ext(fname)
 	if strings.HasPrefix(myExt, ".go") {
-		dstFile = fname[0:len(myExt)] + "." + myExt[2:]
+		dstFile = fname[0:len(dstFile)-len(myExt)] + "." + myExt[3:]
+	}
+
+	if Debug {
+		log.Println(fmt.Sprintf("BuildInfo: wrote template file to: %s", dstFile))
 	}
 
 	if err := ioutil.WriteFile(dstFile, buf.Bytes(), os.ModePerm); err != nil {
@@ -99,7 +117,11 @@ func (b BuildInfo) applyTemplate(fname string) (string, error) {
 	}
 
 	if dstFile != fname {
-		if err := os.RemoveAll(dstFile); err != nil {
+		if Debug {
+			log.Println(fmt.Sprintf("BuildInfo: remove extra file: %s", fname))
+		}
+
+		if err := os.RemoveAll(fname); err != nil {
 			return "", fmt.Errorf("cannot remove source file: %w", err)
 		}
 	}

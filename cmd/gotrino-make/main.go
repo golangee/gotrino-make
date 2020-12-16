@@ -66,7 +66,7 @@ func run() error {
 	if len(flag.Args()) == 1 {
 		action := flag.Args()[len(flag.Args())-1]
 
-		a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir)
+		a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir, *debug)
 		if err != nil {
 			return err
 		}

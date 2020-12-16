@@ -15,6 +15,7 @@
 package builder_test
 
 import (
+	"fmt"
 	"github.com/golangee/gotrino-make/internal/builder"
 	"github.com/golangee/gotrino-make/internal/gotool"
 	"github.com/golangee/gotrino-make/internal/hashtree"
@@ -29,16 +30,18 @@ func TestGoBuildWasm(t *testing.T) {
 	gotool.Debug = true
 
 	tmpDir := filepath.Join(os.TempDir(), "gotrino-make")
-	prjDir := "/Users/tschinke/git/github.com/golangee/forms-example/www/"
+	prjDir := "/Users/tschinke/git/github.com/golangee/gotrino-tutorial.git"
 	prj, err := builder.NewProject(prjDir, tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
+		fmt.Printf("\n\n\n========== build %d begin ================\n\n\n",i)
 		if err := prj.Build(false, true); err != nil {
 			t.Fatal(err)
 		}
+		fmt.Printf("\n\n\n========== build %d end ================\n\n\n",i)
 	}
 
 }

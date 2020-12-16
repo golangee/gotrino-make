@@ -37,6 +37,19 @@ type Module struct {
 	}
 }
 
+// Version returns the go version.
+func Version() (string, error) {
+	cmd := exec.Command("go", "version")
+	cmd.Env = os.Environ()
+
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("unable to 'go version': %w", err)
+	}
+
+	return strings.TrimSpace(string(res)), nil
+}
+
 // ModList returns all local folders to each correct dependency version. The first
 // returned directory is the main directory.
 func ModList(moduleDir string) ([]Module, error) {

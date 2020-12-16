@@ -35,7 +35,7 @@ type Application struct {
 	tmpDir  string
 }
 
-func NewApplication(host string, port int, wwwDir, buildDir string) (*Application, error) {
+func NewApplication(host string, port int, wwwDir, buildDir string, debug bool) (*Application, error) {
 	tmpDir := buildDir
 	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
 		return nil, err
@@ -47,6 +47,11 @@ func NewApplication(host string, port int, wwwDir, buildDir string) (*Applicatio
 
 	a.logger.Println(ecs.Msg("build dir " + tmpDir))
 	wwwBuildDir := filepath.Join(tmpDir, "www")
+
+	if debug {
+		a.logger.Println(fmt.Sprintf("frontend source directory: %s", wwwDir))
+		a.logger.Println(fmt.Sprintf("frontend target build directory: %s", wwwBuildDir))
+	}
 
 	if err := os.MkdirAll(wwwBuildDir, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("unable to create www build dir")

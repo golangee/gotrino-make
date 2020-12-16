@@ -117,6 +117,7 @@ func (n *Node) Remove(name string) {
 
 // Add inserts the given child and keeps a sorted order.
 func (n *Node) Add(child *Node) {
+	n.Remove(child.Name)
 	n.Children = append(n.Children, child)
 
 	sort.Slice(n.Children, func(i, j int) bool {
@@ -176,10 +177,12 @@ func ReadDir(rootDir string, parent *Node) error {
 		}
 
 		// if it is a directory or changed, descend
-		node = &Node{
-			Name:    file.Name(),
-			Mode:    file.Mode(),
-			ModTime: file.ModTime(),
+		if node == nil || node.Mode != file.Mode() {
+			node = &Node{
+				Name:    file.Name(),
+				Mode:    file.Mode(),
+				ModTime: file.ModTime(),
+			}
 		}
 
 		if file.Mode().IsRegular() {

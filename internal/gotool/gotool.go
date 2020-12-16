@@ -37,6 +37,20 @@ type Module struct {
 	}
 }
 
+// Generate invokes go generate ./... in the given directory.
+func Generate(dir string) (string, error) {
+	cmd := exec.Command("go", "generate", "./...")
+	cmd.Env = os.Environ()
+	cmd.Dir = dir
+
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("cannot go generate: %s: %w", string(res), err)
+	}
+
+	return strings.TrimSpace(string(res)), nil
+}
+
 // Version returns the go version.
 func Version() (string, error) {
 	cmd := exec.Command("go", "version")

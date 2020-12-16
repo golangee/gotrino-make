@@ -71,6 +71,8 @@ Usage gotrino-make:
         filename to a local json file, which contains extra BuildInfo values. Accessible in templates by {{.Extra}}
   -forceRefresh
         if set to true, all file hashes are always recalculated for each build instead of relying on ModTime.
+  -generate
+        if set to true, 'go generate' is invoked everytime before building.
   -host string
         the host to bind on. (default "localhost")
   -port int
@@ -79,6 +81,7 @@ Usage gotrino-make:
         file extensions which should be processed as text/template with BuildInfo. (default ".gohtml,.gocss,.gojs,.gojson,.goxml")
   -www string
         the directory which contains the go wasm module to build.
+
 ```
 
 ## BuildInfo fields for templating

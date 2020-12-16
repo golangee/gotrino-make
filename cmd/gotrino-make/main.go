@@ -49,6 +49,8 @@ func run() error {
 	templatePatterns := flag.String("templatePatterns", ".gohtml,.gocss,.gojs,.gojson,.goxml", "file extensions which should be processed as text/template with BuildInfo.")
 	extra := flag.String("extra", "", "filename to a local json file, which contains extra BuildInfo values. Accessible in templates by {{.Extra}}")
 	forceRefresh := flag.Bool("forceRefresh", false, "if set to true, all file hashes are always recalculated for each build instead of relying on ModTime.")
+	goGenerate := flag.Bool("generate",false,"if set to true, 'go generate' is invoked everytime before building.")
+
 	flag.Parse()
 
 	builder.Debug = *debug
@@ -65,6 +67,7 @@ func run() error {
 	opts.Force = *forceRefresh
 	opts.HotReload = action == "serve"
 	opts.Debug = *debug
+	opts.GoGenerate = *goGenerate
 
 	if *extra != "" {
 		buf, err := ioutil.ReadFile(*extra)

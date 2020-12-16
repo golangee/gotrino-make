@@ -32,6 +32,7 @@ type Options struct {
 	TemplatePatterns []string
 	Extra            interface{}
 	Debug            bool
+	GoGenerate       bool
 }
 
 // A Part of a Project.
@@ -305,6 +306,17 @@ func (p *Project) Build(opts Options) ([32]byte, error) {
 		}
 
 		return p.lastBuildHash, nil
+	}
+
+	if opts.GoGenerate {
+		genPrints, err := gotool.Generate(p.srcPath)
+		if err != nil {
+			return p.lastBuildHash, fmt.Errorf("failed to go generate: %w", err)
+		}
+
+		if Debug {
+			log.Println(genPrints)
+		}
 	}
 
 	// reset our last build hash, otherwise we may get weired build/bug/revert/non-build inconsistencies

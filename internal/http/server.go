@@ -89,6 +89,11 @@ func (s *Server) Run() error {
 
 // Stop signals the server to halt gracefully.
 func (s *Server) Stop() {
+	// normal if never run
+	if s.httpSrv == nil {
+		return
+	}
+
 	if err := s.httpSrv.Shutdown(context.Background()); err != nil {
 		s.logger.Println(ecs.Msg("failed to shutdown"), ecs.ErrMsg(err))
 	}

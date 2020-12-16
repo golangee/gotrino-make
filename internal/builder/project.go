@@ -25,6 +25,15 @@ const (
 // Debug is a global flag, which is only used by the command line program to track errors down.
 var Debug = false
 
+// Options to use for building.
+type Options struct {
+	Force            bool
+	HotReload        bool
+	TemplatePatterns []string
+	Extra            interface{}
+	Debug            bool
+}
+
 // A Part of a Project.
 type Part struct {
 	mod gotool.Module
@@ -59,22 +68,20 @@ func (p *Part) refresh(force bool, subDir string) error {
 
 // A Project is kept usually in-memory to efficiently (re-)build a Go module with dependent other modules.
 type Project struct {
-	srcPath             string // srcPath contains the source go module.
-	main                *Part
-	mods                []*Part // modules contains at least 1 module. The first module is always the main module.
-	dst                 *hashtree.Node
-	dstPath             string   // the actual target directory to merge everything into.
-	extraDstFiles       []string // absolute file names in dstPath which must/need not to be deleted.
-	lastBuildHash       [32]byte
-	templateExtPatterns []string // templateExtPatterns like *.gohtml
+	srcPath       string // srcPath contains the source go module.
+	main          *Part
+	mods          []*Part // modules contains at least 1 module. The first module is always the main module.
+	dst           *hashtree.Node
+	dstPath       string   // the actual target directory to merge everything into.
+	extraDstFiles []string // absolute file names in dstPath which must/need not to be deleted.
+	lastBuildHash [32]byte
 }
 
 // NewProject allocates a new project and setups one-time things.
-func NewProject(srcPath, dstPath string) (*Project, error) {
+func NewProject(dstPath, srcPath string) (*Project, error) {
 	p := &Project{
-		srcPath:             srcPath,
-		dstPath:             dstPath,
-		templateExtPatterns: []string{".gohtml", ".gocss", ".gojs", ".gojson", ".goxml"},
+		srcPath: srcPath,
+		dstPath: dstPath,
 	}
 
 	if err := p.copyWasmBridge(); err != nil {
@@ -220,6 +227,10 @@ func (p *Project) sync() error {
 			if err := io.CopyFile(to, from); err != nil {
 				return fmt.Errorf("fail to copy file: %w", err)
 			}
+		} else {
+			if Debug {
+				log.Println(fmt.Sprintf("sync: unmodified %s", file.Filename))
+			}
 		}
 	}
 
@@ -266,17 +277,23 @@ func (p *Project) srcHash() [32]byte {
 }
 
 // Build syncs the file tree of all modules into the build destination directory and compiles the web assembly.
-func (p *Project) Build(force, hotReload bool) error {
+// Returns the unique hash of the last build.
+func (p *Project) Build(opts Options) ([32]byte, error) {
+	start := time.Now()
+	defer func() {
+		log.Println(fmt.Sprintf("build duration: %v", time.Now().Sub(start)))
+	}()
+
 	if err := os.MkdirAll(p.dstPath, os.ModePerm); err != nil {
-		return fmt.Errorf("unable to create build directory: %s: %w", p.dstPath, err)
+		return p.lastBuildHash, fmt.Errorf("unable to create build directory: %s: %w", p.dstPath, err)
 	}
 
 	if err := p.loadMods(); err != nil {
-		return fmt.Errorf("unable to load modules: %w", err)
+		return p.lastBuildHash, fmt.Errorf("unable to load modules: %w", err)
 	}
 
-	if err := p.refresh(force); err != nil {
-		return fmt.Errorf("unable to refresh file hashes: %w", err)
+	if err := p.refresh(opts.Force); err != nil {
+		return p.lastBuildHash, fmt.Errorf("unable to refresh file hashes: %w", err)
 	}
 
 	// only compare originally synced hashes, to avoid any other copy work, which just creates invalid
@@ -287,7 +304,12 @@ func (p *Project) Build(force, hotReload bool) error {
 			log.Println(fmt.Sprintf("hash unchanged, no build required: %s", hex.EncodeToString(uberHash[:])))
 		}
 
-		return nil
+		return p.lastBuildHash, nil
+	}
+
+	// reset our last build hash, otherwise we may get weired build/bug/revert/non-build inconsistencies
+	for i := range p.lastBuildHash {
+		p.lastBuildHash[i] = 0
 	}
 
 	if Debug {
@@ -296,14 +318,15 @@ func (p *Project) Build(force, hotReload bool) error {
 
 	// copy all original stuff over, sync also deletes generated extra files like wasm and templates
 	if err := p.sync(); err != nil {
-		return fmt.Errorf("cannot sync file trees: %w", err)
+		return p.lastBuildHash, fmt.Errorf("cannot sync file trees: %w", err)
 	}
 
 	// try to actually build, every other error until now was critical
 	buildInfo := BuildInfo{
 		Time:      time.Now(),
 		Version:   hex.EncodeToString(uberHash[:]),
-		HotReload: hotReload,
+		HotReload: opts.HotReload,
+		Extra:     opts.Extra,
 	}
 
 	hostname, err := os.Hostname()
@@ -333,23 +356,28 @@ func (p *Project) Build(force, hotReload bool) error {
 			log.Println("wasm build failed", err)
 		}
 	} else {
+		buildInfo.Wasm = true
 		if Debug {
 			log.Println("wasm build successful")
 		}
 	}
 
 	// apply all templates to files like *.gocss or *.gohtml
+	allFiles, err := listAllFiles(p.dstPath)
+	if err != nil {
+		return p.lastBuildHash, err
+	}
+
 GoTemplateLoop:
-	for _, file := range p.dst.Flatten(p.dstPath) {
-		ext := strings.ToLower(filepath.Ext(file.Filename))
-		for _, pattern := range p.templateExtPatterns {
+	for _, file := range allFiles {
+		ext := strings.ToLower(filepath.Ext(file))
+		for _, pattern := range opts.TemplatePatterns {
 			if pattern == ext {
-				fname := filepath.Join(file.Prefix, file.Filename)
 				if Debug {
-					log.Println(fmt.Sprintf("found template file: %s", fname))
+					log.Println(fmt.Sprintf("found template file: %s", file))
 				}
 
-				_, err := buildInfo.applyTemplate(fname)
+				_, err := buildInfo.applyTemplate(file)
 				if err != nil {
 					log.Println("template error", err)
 				}
@@ -367,7 +395,7 @@ GoTemplateLoop:
 		if Debug {
 			log.Println("build has errors")
 		}
-		return CompileErr{delegate: buildInfo.CompileError}
+		return p.lastBuildHash, CompileErr{delegate: buildInfo.CompileError}
 	}
 
 	p.lastBuildHash = uberHash
@@ -376,5 +404,31 @@ GoTemplateLoop:
 		log.Println(fmt.Sprintf("build completed: %s", hex.EncodeToString(p.lastBuildHash[:])))
 	}
 
-	return nil
+	return p.lastBuildHash, nil
+}
+
+func listAllFiles(root string) ([]string, error) {
+	var res []string
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.Mode().IsDir() && strings.HasPrefix(info.Name(), ".") {
+			return filepath.SkipDir
+		}
+
+		if info.Mode().IsRegular() {
+			res = append(res, path)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot list files: %w", err)
+	}
+
+	return res, nil
 }

@@ -173,17 +173,22 @@ func ReadDir(rootDir string, parent *Node) error {
 				log.Println(fmt.Sprintf("hashtree: %s: file not changed, do not read file: %s", rootDir, file.Name()))
 			}
 
+			if _, err := hasher.Write(node.Hash[:]); err != nil {
+				return fmt.Errorf("unable to hash node: %w", err)
+			}
+
 			continue
 		}
 
 		// if it is a directory or changed, descend
 		if node == nil || node.Mode != file.Mode() {
 			node = &Node{
-				Name:    file.Name(),
-				Mode:    file.Mode(),
-				ModTime: file.ModTime(),
+				Name: file.Name(),
+				Mode: file.Mode(),
 			}
 		}
+
+		node.ModTime = file.ModTime()
 
 		if file.Mode().IsRegular() {
 			h, err := Read(absolutePath)

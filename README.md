@@ -6,7 +6,7 @@ Package gotrino-make/cmd/gotrino-make contains a program to build or serve with 
 
 ```bash
 # install into ~/go/bin
-GOPROXY=direct go get -u github.com/golangee/gotrino-make/cmd/gotrino-make
+GO111MODULE=off GOPROXY=direct go get -u github.com/golangee/gotrino-make/cmd/gotrino-make
 
 # create a new wasm project
 mkdir -p ~/tmp/gotrino-test/cmd/wasm
@@ -52,6 +52,57 @@ gotrino-make -dir=./dist build
 # Now change your file and note that the browser will automatically reload the page.
 gotrino-make -host=0.0.0.0 -www=. serve
 ```
+
 <p align="center">
-  <img height="300" src="helloworld.png">
+  <img style="height:300px;border:1px solid gray" src="helloworld.png"/>
 </p>
+
+## gotrino-make options
+
+```bash
+gotrino-make -h
+
+Usage gotrino-make:
+  -debug
+        enable debug logging output for gotrino-make.
+  -dir string
+        the target output build directory. If empty a temporary folder is picked automatically.
+  -extra string
+        filename to a local json file, which contains extra BuildInfo values. Accessible in templates by {{.Extra}}
+  -forceRefresh
+        if set to true, all file hashes are always recalculated for each build instead of relying on ModTime.
+  -host string
+        the host to bind on. (default "localhost")
+  -port int
+        the port to bind to for the serve mode. (default 8080)
+  -templatePatterns string
+        file extensions which should be processed as text/template with BuildInfo. (default ".gohtml,.gocss,.gojs,.gojson,.goxml")
+  -www string
+        the directory which contains the go wasm module to build.
+```
+
+## BuildInfo fields for templating
+
+```go
+// BuildInfo provides some basic information about a gotrino build.
+type BuildInfo struct {
+    // Time of this build.
+    Time time.Time
+    // Version contains a hash or something else which uniquely identifies this build.
+    Version string
+    // CompileError is nil or contains a compile error.
+    CompileError error
+    // HotReload is true, if the server should be polled at /api/v1/poll/version.
+    HotReload bool
+    // Wasm is true, if the web assembly (app.wasm) is available.
+    Wasm bool
+    // Commit may be empty, if the project is not contained in a git repository.
+    Commit string
+    // Host name.
+    Host string
+    // Compiler denotes the compiler which has created the wasm build.
+    Compiler string
+    // Extra may be nil or injected by user.
+    Extra interface{}
+}
+```

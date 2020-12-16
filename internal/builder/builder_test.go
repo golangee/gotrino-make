@@ -31,17 +31,21 @@ func TestGoBuildWasm(t *testing.T) {
 
 	tmpDir := filepath.Join(os.TempDir(), "gotrino-make")
 	prjDir := "/Users/tschinke/git/github.com/golangee/gotrino-tutorial.git"
-	prj, err := builder.NewProject(prjDir, tmpDir)
+	prj, err := builder.NewProject(tmpDir, prjDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for i := 0; i < 3; i++ {
-		fmt.Printf("\n\n\n========== build %d begin ================\n\n\n",i)
-		if err := prj.Build(false, true); err != nil {
+		fmt.Printf("\n\n\n========== build %d begin ================\n\n\n", i)
+		opts := builder.Options{
+			Force:     false,
+			HotReload: true,
+		}
+		if _, err := prj.Build(opts); err != nil {
 			t.Fatal(err)
 		}
-		fmt.Printf("\n\n\n========== build %d end ================\n\n\n",i)
+		fmt.Printf("\n\n\n========== build %d end ================\n\n\n", i)
 	}
 
 }

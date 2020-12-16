@@ -15,7 +15,6 @@
 package livebuilder
 
 import (
-	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -24,46 +23,41 @@ import (
 	"github.com/golangee/log"
 	"github.com/golangee/log/ecs"
 	"sync"
-	"time"
 )
 
 // Builder provides an automatic live builder which rebuilds an idiomatic golangee wasm project any time it
 // recognizes a change.
 type Builder struct {
 	logger         log.Logger
-	lastBuildHash  []byte
 	srcDir, dstDir string
 	buildLock      sync.Mutex
 	watcher        *fsnotify.Watcher
 	buildFinished  func(hash string)
+	opts           builder.Options
+	project        *builder.Project
 }
 
-func NewBuilder(dstDir, srcDir string, buildFinished func(hash string)) (*Builder, error) {
+func NewBuilder(dstDir, srcDir string, buildFinished func(hash string), opts builder.Options) (*Builder, error) {
 	b := &Builder{
 		srcDir:        srcDir,
 		dstDir:        dstDir,
 		buildFinished: buildFinished,
+		opts:          opts,
 	}
 
+	prj, err := builder.NewProject(dstDir, srcDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to setup project builder: %w", err)
+	}
+
+	b.project = prj
 	b.logger = log.NewLogger(ecs.Log("livebuilder"))
 
 	w, err := fsnotify.NewWatcher(srcDir, func() {
-		hash, err := builder.HashFileTree(srcDir)
-		if err != nil {
-			b.logger.Println(ecs.Msg("failed to calculate file tree hash"), ecs.ErrMsg(err))
-			return
+		if err := b.Build(); err != nil {
+			b.logger.Println("failed to build", err)
 		}
 
-		b.buildLock.Lock()
-		hashCopy := append([]byte{}, b.lastBuildHash...)
-		b.buildLock.Unlock()
-
-		if bytes.Compare(hashCopy, hash) != 0 {
-			if err := b.Build(); err != nil {
-				b.logger.Println(ecs.Msg("failed to build project"), ecs.ErrMsg(err))
-				return
-			}
-		}
 	})
 
 	if err != nil {
@@ -81,17 +75,11 @@ func (b *Builder) Build() error {
 	b.buildLock.Lock()
 	defer b.buildLock.Unlock()
 
-	start := time.Now()
-	defer func() {
-		b.logger.Println(ecs.Msg("build duration " + time.Now().Sub(start).String()))
-	}()
-	hash, err := builder.HashFileTree(b.srcDir)
-	if err != nil {
-		return err
+	if b.opts.Debug {
+		b.logger.Println("building started...")
 	}
-	b.logger.Println(ecs.Msg("building " + hex.EncodeToString(hash)))
 
-	err = builder.BuildProject(b.srcDir, b.dstDir)
+	hash, err := b.project.Build(b.opts)
 	if err != nil {
 		var buildErr builder.CompileErr
 		if !errors.As(err, &buildErr) {
@@ -99,10 +87,8 @@ func (b *Builder) Build() error {
 		}
 	}
 
-	b.lastBuildHash = hash
-
 	if b.buildFinished != nil {
-		b.buildFinished(hex.EncodeToString(hash))
+		b.buildFinished(hex.EncodeToString(hash[:]))
 	}
 
 	return err

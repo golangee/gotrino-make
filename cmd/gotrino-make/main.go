@@ -15,12 +15,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/golangee/gotrino-make/internal/app"
 	"github.com/golangee/gotrino-make/internal/builder"
 	"github.com/golangee/gotrino-make/internal/gotool"
 	"github.com/golangee/gotrino-make/internal/hashtree"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -40,16 +42,41 @@ func run() error {
 	}
 
 	host := flag.String("host", "localhost", "the host to bind on.")
-	port := flag.Int("port", 8080, "the port to bind to.")
-	wwwDir := flag.String("www", "", "the directory which contains the wasm module.")
-	buildDir := flag.String("dir", "", "the target build directory")
-	debug := flag.Bool("debug", false, "enable debug logging output")
-
+	port := flag.Int("port", 8080, "the port to bind to for the serve mode.")
+	wwwDir := flag.String("www", "", "the directory which contains the go wasm module to build.")
+	buildDir := flag.String("dir", "", "the target output build directory. If empty a temporary folder is picked automatically.")
+	debug := flag.Bool("debug", false, "enable debug logging output for gotrino-make.")
+	templatePatterns := flag.String("templatePatterns", ".gohtml,.gocss,.gojs,.gojson,.goxml", "file extensions which should be processed as text/template with BuildInfo.")
+	extra := flag.String("extra", "", "filename to a local json file, which contains extra BuildInfo values. Accessible in templates by {{.Extra}}")
+	forceRefresh := flag.Bool("forceRefresh", false, "if set to true, all file hashes are always recalculated for each build instead of relying on ModTime.")
 	flag.Parse()
 
 	builder.Debug = *debug
 	hashtree.Debug = *debug
 	gotool.Debug = *debug
+
+	action := ""
+	if len(flag.Args()) == 1 {
+		action = flag.Args()[len(flag.Args())-1]
+	}
+
+	opts := builder.Options{}
+	opts.TemplatePatterns = strings.Split(*templatePatterns, ",")
+	opts.Force = *forceRefresh
+	opts.HotReload = action == "serve"
+	opts.Debug = *debug
+
+	if *extra != "" {
+		buf, err := ioutil.ReadFile(*extra)
+		if err != nil {
+			return fmt.Errorf("unable to open extra file: %w", err)
+		}
+
+		err = json.Unmarshal(buf, &opts.Extra)
+		if err != nil {
+			return fmt.Errorf("unable to unmarshal json from extra file: %w", err)
+		}
+	}
 
 	if *buildDir == "" {
 		*buildDir = filepath.Join(os.TempDir(), "gotrino-livebuilder")
@@ -64,9 +91,8 @@ func run() error {
 	}
 
 	if len(flag.Args()) == 1 {
-		action := flag.Args()[len(flag.Args())-1]
 
-		a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir, *debug)
+		a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir, opts)
 		if err != nil {
 			return err
 		}
@@ -83,11 +109,9 @@ func run() error {
 				log.Fatalf("cannot clean build dir: %w", err)
 			}
 		default:
-			log.Fatalf("invalid action: %s", action)
+			log.Fatalf("you must provide an action: serve | build | clean")
 		}
 
-	} else {
-		log.Fatalf("you must provide an action: serve | build | clean")
 	}
 
 	return nil

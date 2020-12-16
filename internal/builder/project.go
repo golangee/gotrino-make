@@ -309,6 +309,10 @@ func (p *Project) Build(opts Options) ([32]byte, error) {
 	}
 
 	if opts.GoGenerate {
+		if Debug {
+			log.Println("invoking go generate ./...")
+		}
+
 		genPrints, err := gotool.Generate(p.srcPath)
 		if err != nil {
 			return p.lastBuildHash, fmt.Errorf("failed to go generate: %w", err)
@@ -316,6 +320,11 @@ func (p *Project) Build(opts Options) ([32]byte, error) {
 
 		if Debug {
 			log.Println(genPrints)
+		}
+
+		// need to refresh again
+		if err := p.refresh(opts.Force); err != nil {
+			return p.lastBuildHash, fmt.Errorf("unable to refresh file hashes: %w", err)
 		}
 	}
 

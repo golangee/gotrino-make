@@ -37,6 +37,15 @@ func Upload(host, login, password, localDir, remoteDir string, port int, debug, 
 		return fmt.Errorf("unable to login: %w", err)
 	}
 
+	_, err = ftp.Pasv()
+	if err != nil {
+		log.Println(fmt.Errorf("unable to enable pasv mode: %w", err))
+	} else {
+		if debug {
+			log.Println("passive mode enabled")
+		}
+	}
+
 	if err = ftp.Cwd(remoteDir); err != nil {
 		return fmt.Errorf("unable to change remote dir: %w", err)
 	}

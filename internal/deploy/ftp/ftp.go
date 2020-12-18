@@ -41,12 +41,12 @@ func Upload(host, login, password, localDir, remoteDir string, port int, debug, 
 		return fmt.Errorf("unable to change remote dir: %w", err)
 	}
 
-	files, err := ftp.List("")
-	if err != nil {
-		return fmt.Errorf("unable to list files")
-	}
-
 	if debug {
+		files, err := ftp.List("")
+		if err != nil {
+			return fmt.Errorf("unable to list files")
+		}
+
 		for _, file := range files {
 			log.Println(file)
 		}

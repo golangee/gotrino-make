@@ -94,7 +94,8 @@ func (s *Server) Stop() {
 		return
 	}
 
-	if err := s.httpSrv.Shutdown(context.Background()); err != nil {
+	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	if err := s.httpSrv.Shutdown(ctx); err != nil {
 		s.logger.Println(ecs.Msg("failed to shutdown"), ecs.ErrMsg(err))
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/golangee/gotrino-make/internal/app"
 	"github.com/golangee/gotrino-make/internal/builder"
+	"github.com/golangee/gotrino-make/internal/deploy/ftp"
 	"github.com/golangee/gotrino-make/internal/gotool"
 	"github.com/golangee/gotrino-make/internal/hashtree"
 	"io/ioutil"
@@ -49,7 +50,14 @@ func run() error {
 	templatePatterns := flag.String("templatePatterns", ".gohtml,.gocss,.gojs,.gojson,.goxml", "file extensions which should be processed as text/template with BuildInfo.")
 	extra := flag.String("extra", "", "filename to a local json file, which contains extra BuildInfo values. Accessible in templates by {{.Extra}}")
 	forceRefresh := flag.Bool("forceRefresh", false, "if set to true, all file hashes are always recalculated for each build instead of relying on ModTime.")
-	goGenerate := flag.Bool("generate",false,"if set to true, 'go generate' is invoked everytime before building.")
+	goGenerate := flag.Bool("generate", false, "if set to true, 'go generate' is invoked everytime before building.")
+	deployHost := flag.String("deploy-host", "", "the host to deploy to")
+	deployPwd := flag.String("deploy-password", "", "the host password to deploy to")
+	deployUser := flag.String("deploy-user", "", "the host user to deploy to")
+	deploySrc := flag.String("deploy-src", "", "the local folder to upload")
+	deployDst := flag.String("deploy-dst", "/", "the remote folder to upload")
+	deployPrt := flag.Int("deploy-port", 21, "the remote port (e.g. ftp)")
+	deploySkipVerify := flag.Bool("deploy-skip-verify", false, "accept invalid certificates")
 
 	flag.Parse()
 
@@ -89,24 +97,38 @@ func run() error {
 		*buildDir = filepath.Join(cwd, *buildDir)
 	}
 
+	if strings.HasPrefix(*deploySrc, ".") {
+		*deploySrc = filepath.Join(cwd, *deploySrc)
+	}
+
 	if *wwwDir == "" || strings.HasPrefix(*wwwDir, ".") {
 		*wwwDir = filepath.Join(cwd, *wwwDir)
 	}
 
 	if len(flag.Args()) == 1 {
 
-		a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir, opts)
-		if err != nil {
-			return err
-		}
-
-		defer a.Close()
-
 		switch action {
+		case "deploy-ftp":
+			err := ftp.Upload(*deployHost, *deployUser, *deployPwd, *deploySrc, *deployDst, *deployPrt, *debug, *deploySkipVerify)
+			if err != nil {
+				return fmt.Errorf("unable to deploy-ftp: %w", err)
+			}
 		case "serve":
+			a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir, opts)
+			if err != nil {
+				return err
+			}
+
+			defer a.Close()
+
 			return a.Run()
 		case "build":
-		// already builds on construction
+			a, err := app.NewApplication(*host, *port, *wwwDir, *buildDir, opts)
+			if err != nil {
+				return err
+			}
+
+			defer a.Close()
 		case "clean":
 			if err := os.RemoveAll(*buildDir); err != nil {
 				log.Fatalf("cannot clean build dir: %w", err)
@@ -118,4 +140,8 @@ func run() error {
 	}
 
 	return nil
+}
+
+func buildAndApp() {
+
 }

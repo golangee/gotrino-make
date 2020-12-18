@@ -65,6 +65,20 @@ gotrino-make -h
 Usage gotrino-make:
   -debug
         enable debug logging output for gotrino-make.
+  -deploy-dst string
+        the remote folder to upload (default "/")
+  -deploy-host string
+        the host to deploy to
+  -deploy-password string
+        the host password to deploy to
+  -deploy-port int
+        the remote port (e.g. ftp) (default 21)
+  -deploy-skip-verify
+        accept invalid certificates
+  -deploy-src string
+        the local folder to upload
+  -deploy-user string
+        the host user to deploy to
   -dir string
         the target output build directory. If empty a temporary folder is picked automatically.
   -extra string
@@ -108,4 +122,12 @@ type BuildInfo struct {
     // Extra may be nil or injected by user.
     Extra interface{}
 }
+```
+
+## simple ftp deployment
+To make things easier and have a "just deploy it" experience for your simple web space provider,
+there is a trivial ftp implementation. Example:
+
+```bash
+gotrino-make -deploy-host=$FTP_HOST -deploy-user=$FTP_USER -deploy-password=$FTP_PASSWORD -deploy-src=<your www path> deploy-ftp
 ```

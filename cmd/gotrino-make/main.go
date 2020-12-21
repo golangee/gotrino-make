@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/golangee/gotrino-make/internal/app"
 	"github.com/golangee/gotrino-make/internal/builder"
-	"github.com/golangee/gotrino-make/internal/deploy/ftp"
+	"github.com/golangee/gotrino-make/internal/deploy"
 	"github.com/golangee/gotrino-make/internal/gotool"
 	"github.com/golangee/gotrino-make/internal/hashtree"
 	"io/ioutil"
@@ -55,15 +55,16 @@ func run() error {
 	deployPwd := flag.String("deploy-password", "", "the host password to deploy to")
 	deployUser := flag.String("deploy-user", "", "the host user to deploy to")
 	deploySrc := flag.String("deploy-src", "", "the local folder to upload")
-	deployDst := flag.String("deploy-dst", "/", "the remote folder to upload")
-	deployPrt := flag.Int("deploy-port", 21, "the remote port (e.g. ftp)")
-	deploySkipVerify := flag.Bool("deploy-skip-verify", false, "accept invalid certificates")
+	deployDst := flag.String("deploy-dst", ".", "the remote folder to upload")
+	deployPrt := flag.Int("deploy-port", 22, "the remote port (e.g. ftp is usually 21 and sftp (SSH file Transfer Protocol) is 22)")
+	//deploySkipVerify := flag.Bool("deploy-skip-verify", false, "accept invalid certificates")
 
 	flag.Parse()
 
 	builder.Debug = *debug
 	hashtree.Debug = *debug
 	gotool.Debug = *debug
+	deploy.Debug = *debug
 
 	action := ""
 	if len(flag.Args()) == 1 {
@@ -109,7 +110,13 @@ func run() error {
 
 		switch action {
 		case "deploy-ftp":
-			err := ftp.Upload(*deployHost, *deployUser, *deployPwd, *deploySrc, *deployDst, *deployPrt, *debug, *deploySkipVerify)
+			/*err := ftp.Upload(*deployHost, *deployUser, *deployPwd, *deploySrc, *deployDst, *deployPrt, *debug, *deploySkipVerify)
+			if err != nil {
+				return fmt.Errorf("unable to deploy-ftp: %w", err)
+			}*/
+			panic("implement me")
+		case "deploy-sftp":
+			err := deploy.SyncSFTP(*deployDst, *deploySrc, *deployHost, *deployUser, *deployPwd, *deployPrt)
 			if err != nil {
 				return fmt.Errorf("unable to deploy-ftp: %w", err)
 			}
@@ -134,7 +141,7 @@ func run() error {
 				log.Fatalf("cannot clean build dir: %w", err)
 			}
 		default:
-			log.Fatalf("you must provide an action: serve | build | clean")
+			log.Fatalf("you must provide an action: serve | build | clean | deploy-sftp")
 		}
 
 	}

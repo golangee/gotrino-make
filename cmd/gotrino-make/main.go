@@ -106,6 +106,12 @@ func run() error {
 		*wwwDir = filepath.Join(cwd, *wwwDir)
 	}
 
+	// strip absolute slash, otherwise we would
+	// violate https://go.googlesource.com/proposal/+/master/design/draft-iofs.md#file-name-syntax
+	if strings.HasPrefix(*deploySrc, "/") {
+		*deploySrc = (*deploySrc)[1:]
+	}
+
 	if len(flag.Args()) == 1 {
 
 		switch action {

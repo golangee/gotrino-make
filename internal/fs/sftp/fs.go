@@ -79,14 +79,15 @@ func (f *FS) RemoveAll(name string) error {
 		}
 
 		for _, info := range files {
-			if err := f.RemoveAll(name + "/" + info.Name()); err != nil {
+			sub, _ := f.Sub(name)
+			if err := sub.(*FS).RemoveAll(info.Name()); err != nil {
 				return err
 			}
 		}
+
 		if err := f.client.RemoveDirectory(name); err != nil {
 			return fmt.Errorf("unable to remove cleared directory: %w", err)
 		}
-
 	} else {
 		return f.client.Remove(name)
 	}

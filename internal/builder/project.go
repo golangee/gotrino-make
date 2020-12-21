@@ -115,6 +115,15 @@ func (p *Project) copyWasmBridge() error {
 // loadMods refreshes the modules. It tries to avoid resetting modules, to keep their state in-memory and allow delta
 // updates.
 func (p *Project) loadMods() error {
+	str, err := gotool.ModTidy(p.srcPath) // otherwise the Dir folders may be empty, because no sources have been loaded
+	if err != nil {
+		return fmt.Errorf("unable to go mod tidy: %w", err)
+	}
+
+	if Debug {
+		log.Println(str)
+	}
+
 	mods, err := gotool.ModList(p.srcPath)
 	if err != nil {
 		return fmt.Errorf("unable to list modules: %w", err)

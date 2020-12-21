@@ -37,6 +37,21 @@ type Module struct {
 	}
 }
 
+// ModTidy invokes go mod tidy in the given directory. It will clean up deps and download their source.
+// See also https://golang.org/ref/mod#go-mod-tidy.
+func ModTidy(dir string) (string, error) {
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Env = os.Environ()
+	cmd.Dir = dir
+
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("cannot go generate: %s: %w", string(res), err)
+	}
+
+	return strings.TrimSpace(string(res)), nil
+}
+
 // Generate invokes go generate ./... in the given directory.
 func Generate(dir string) (string, error) {
 	cmd := exec.Command("go", "generate", "./...")

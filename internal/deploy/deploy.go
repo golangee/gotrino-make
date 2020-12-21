@@ -58,7 +58,7 @@ func Sync(dst, src fs.ReadDirFS) error {
 	for _, file := range srcFiles {
 		if file.IsDir() {
 			if Debug {
-				log.Println("copy dir", file.Name())
+				log.Println(fmt.Sprintf("copy dir: %s", file.Name()))
 			}
 
 			if err := dst.(MkdirAll).MkdirAll(file.Name()); err != nil {
@@ -80,7 +80,7 @@ func Sync(dst, src fs.ReadDirFS) error {
 			}
 		} else {
 			if Debug {
-				log.Println("copy file", file.Name())
+				log.Println(fmt.Sprintf("copy file: %s", file.Name()))
 			}
 
 			dstFile, err := dst.(OpenFile).OpenFile(file.Name(), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, os.ModePerm)
@@ -123,11 +123,11 @@ func Sync(dst, src fs.ReadDirFS) error {
 
 		if !has {
 			if Debug {
-				log.Println("removing extra file", file.Name(), "isDir=", file.IsDir())
+				log.Println(fmt.Sprintf("removing extra file: %s, isDir=%v", file.Name(), file.IsDir()))
 			}
 
 			if err := dst.(RemoveAll).RemoveAll(file.Name()); err != nil {
-				return err
+				return fmt.Errorf("unable to remove: %s: %w", file.Name(), err)
 			}
 		}
 
